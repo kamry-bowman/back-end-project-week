@@ -237,7 +237,6 @@ function makeRoute(db) {
   });
 
   route.delete('/delete/:id', async (req, res, next) => {
-    debugger;
     const id = Number(req.params.id);
     // deletes note in notes table
     let targetNote = await db('notes')
@@ -490,6 +489,7 @@ function makeRoute(db) {
       })
       .then(() => res.status(204).end())
       .catch((err) => {
+        console.log(err);
         if (err instanceof HttpError) {
           return next(err);
         }
