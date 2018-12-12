@@ -41,6 +41,7 @@ server.use('/', (req, res) => {
 
 // Error handling middleware
 server.use((err, req, res, next) => {
+  console.log(err);
   if (err instanceof HttpError) {
     const { code, message } = err;
     return res.status(code).json({ message });
