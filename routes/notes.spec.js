@@ -19,7 +19,7 @@ async function getCurrentDB(userId) {
         .innerJoin('tags', 'notesTagsJoin.tagId', '=', 'tags.id')
         .where('notesTagsJoin.noteId', '=', note.id)
         .then((res) => {
-          resolve({ ...note, tags: [...res] });
+          return resolve({ ...note, tags: [...res] });
         });
     }),
   );

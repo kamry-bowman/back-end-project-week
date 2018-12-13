@@ -41,6 +41,14 @@ function makeRoute(db, passport) {
     res.status(204).send();
   });
 
+  route.get('/user', (req, res, next) => {
+    if (!req.user) {
+      return next(new HttpError(401, 'Forbidden: User not authenticated'));
+    }
+    const { username, id } = req.user;
+    res.status(200).json({ username, id });
+  });
+
   route.post('/login', (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
       if (err) {

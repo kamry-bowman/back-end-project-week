@@ -4,7 +4,7 @@ module.exports = (passport, db) => {
   });
 
   passport.deserializeUser((id, done) => {
-    db('users')
+    return db('users')
       .where('id', '=', id)
       .first()
       .then(user => done(null, user))

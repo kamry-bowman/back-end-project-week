@@ -96,6 +96,39 @@ describe('routes: auth', () => {
         });
     });
 
+    describe('GET /auth/user', () => {
+      test('Successfully returns user information for logged in user', (done) => {
+        const agent = request.agent(server);
+
+        return agent
+          .post('/auth/login')
+          .send({
+            username: user.username,
+            password: user.password,
+          })
+          .then((response) => {
+            console.log(response.body, response.status);
+            return agent
+              .get('/auth/user');
+          })
+          .then((response) => {
+            const { username, id } = response.body;
+            expect(response.status).toBe(200);
+            expect(response.body).toEqual({ username, id });
+            return agent
+              .post('/auth/logout')
+              .then(() => {
+                return agent.get('/auth/user');
+              });
+          })
+          .then((response) => {
+            expect(response.status).toBe(401);
+            expect(response.body).toEqual({ message: 'Forbidden: User not authenticated' });
+            return done();
+          });
+      });
+    });
+
     describe('POST /auth/logout', () => {
       test('Successfully logs out a logged in user', (done) => {
         const agent = request.agent(server);
