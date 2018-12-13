@@ -35,9 +35,6 @@ server.use(flash());
 
 server.use('/auth', authRoute(db, passport));
 server.use('/notes', notesRoute(db));
-server.use('/', (req, res) => {
-  return res.status(200).json({ message: 'Server running' });
-});
 
 // Error handling middleware
 server.use((err, req, res, next) => {

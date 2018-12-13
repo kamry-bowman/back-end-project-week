@@ -63,7 +63,7 @@ describe('routes: auth', () => {
         })
         .then((response) => {
           expect(response.status).toBe(200);
-          expect(response.body).toEqual({ message: 'Login successful' });
+          expect(response.body).toEqual({ username: user.username });
           return done();
         });
     });

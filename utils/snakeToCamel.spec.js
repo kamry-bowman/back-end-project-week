@@ -1,4 +1,3 @@
-
 const snakeToCamel = require('./snakeToCamel');
 
 test('snakeToCamel', () => {

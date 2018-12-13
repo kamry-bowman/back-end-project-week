@@ -54,7 +54,7 @@ function makeRoute(db, passport) {
           if (err) {
             return next(new HttpError(422, 'Login unsuccessful'));
           }
-          return res.status(200).json({ message: 'Login successful' });
+          return res.status(200).json({ username: user.username });
         });
       }
     })(req, res, next);
