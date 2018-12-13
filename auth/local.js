@@ -10,7 +10,7 @@ const init = (passport, db) => {
 
   passport.use(
     new LocalStrategy(options, (username, password, done) => {
-      db('users')
+      return db('users')
         .where('username', '=', username)
         .first()
         .then(async (user) => {

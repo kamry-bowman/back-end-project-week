@@ -10,7 +10,7 @@ exports.seed = (knex, Promise) => {
     .then(() => knex('notes').del())
     .then(() => knex('tags').del())
     .then(() => knex('users').del())
-    .then(() => knex('users').insert(usersSeedArray))
+    .then(() => knex('users').insert(usersSeedArray).returning('id'))
     .then((ids) => knex('notes').insert(noteSeedArray))
     .then(() => knex('tags').insert(tagSeedArray))
     .then(() => knex('notesTagsJoin').insert(notesTagsMapArray));

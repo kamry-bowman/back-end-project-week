@@ -111,7 +111,10 @@ function makeRoute(db) {
         );
         return Promise.all(promiseNotes);
       })
-      .then(preppedNotes => res.status(200).json(preppedNotes))
+      .then((preppedNotes) => {
+        console.log(preppedNotes);
+        return res.status(200).json(preppedNotes)
+      })
       .catch((err) => {
         next(new HttpError(404, 'Database did not supply requested resources.'))
       });
@@ -149,7 +152,7 @@ function makeRoute(db) {
           return next(new HttpError(404, 'Database did not return a resource for this id.'));
         })
         .catch(() => {
-          next(new HttpError(404, 'Database could not return a resource with the id provided'));
+          return next(new HttpError(404, 'Database could not return a resource with the id provided'));
         });
     }
     return next(new HttpError(404, 'A usable id parameter was not received for this request.'));
@@ -211,7 +214,7 @@ function makeRoute(db) {
               });
             })
             .catch(() => {
-              trx.rollback().then(() => resolve());
+              return trx.rollback().then(() => resolve());
             }));
         });
       })
@@ -481,7 +484,7 @@ function makeRoute(db) {
 
               return Promise.all(secondPromises);
             })
-            .then(() => trx.commit())
+            .then(trx.commit)
             .catch((err) => {
               return trx.rollback(err);
             });

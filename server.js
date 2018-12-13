@@ -17,7 +17,10 @@ const dbEnv = process.env.NODE_ENV === 'production' ? 'production' : 'developmen
 const db = knex(knexfile[dbEnv]);
 
 const server = express();
-server.use(cors());
+server.use(cors({
+  origin: ['http://localhost:3000', /nervous-leakey-9c1090/],
+  credentials: true,
+}));
 server.use(helmet());
 server.use(morgan('dev'));
 server.use(express.json());
