@@ -80,6 +80,7 @@ function makeRoute(db) {
   });
 
   route.get('/get/all', (req, res, next) => {
+    console.log(req.user);
     const camelCaseCols = cols.map((col, index) => {
       const processed = col.replace(/_([a-z])/, match => match[1].toUpperCase());
       return cols[index] === processed
