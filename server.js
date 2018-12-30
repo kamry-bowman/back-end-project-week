@@ -12,26 +12,30 @@ const notesRoute = require('./routes/notes');
 const authRoute = require('./routes/auth');
 const HttpError = require('./utils/HttpError');
 
-const dbEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+const dbEnv =
+  process.env.NODE_ENV === 'production' ? 'production' : 'development';
 
 const db = knex(knexfile[dbEnv]);
 
 const server = express();
-server.use(cors({
-  origin: ['http://localhost:3000', /nervous-leakey-9c1090/],
-  credentials: true,
-}));
+server.use(
+  cors({
+    origin: ['http://localhost:3000', /kam-lambda-notes/],
+    credentials: true,
+  })
+);
 server.use(helmet());
 server.use(morgan('dev'));
 server.use(express.json());
 
-
 // auth
-server.use(session({
-  secret: process.env.SECRET_KEY,
-  resave: false,
-  saveUninitialized: true,
-}));
+server.use(
+  session({
+    secret: process.env.SECRET_KEY,
+    resave: false,
+    saveUninitialized: true,
+  })
+);
 server.use(passport.initialize());
 server.use(passport.session());
 server.use(flash());
