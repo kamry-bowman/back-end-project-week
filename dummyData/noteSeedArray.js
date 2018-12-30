@@ -27,7 +27,7 @@ module.exports = [
     right: 4,
   },
   {
-    title: 'Python',
+    title: 'Python Named Parameters',
     text_body:
       'In Python, adding *name as a function parameter after all other positional arguments will create a dictionary that takes all remaining positional input arguments as its members.',
     created_at: '2018-08-05 5:35:12',
@@ -36,7 +36,7 @@ module.exports = [
     right: 5,
   },
   {
-    title: 'Python',
+    title: 'Python For Else',
     text_body:
       'In Python, a for loop can take an else block. The else block will execute if the for loop executes naturally without a break',
     created_at: '2018-08-05 5:35:12',
