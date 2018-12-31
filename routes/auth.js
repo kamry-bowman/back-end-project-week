@@ -6,6 +6,11 @@ const HttpError = require('../utils/HttpError');
 
 const passportInit = require('../auth/config');
 
+const successUrl =
+  process.NODE_ENV === 'production'
+    ? 'https://kam-lambda-notes.netlify.com'
+    : 'http://localhost:3000';
+
 function makeRoute(db, passport) {
   const route = Router();
   passportInit(passport, db);
@@ -78,7 +83,7 @@ function makeRoute(db, passport) {
     '/google/callback',
     passport.authenticate('google', { failureRedirect: '/login' }),
     (req, res) => {
-      return res.redirect('http://localhost:3000/');
+      return res.redirect(successUrl);
     }
   );
 
