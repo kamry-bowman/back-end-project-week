@@ -7,7 +7,7 @@ const HttpError = require('../utils/HttpError');
 const passportInit = require('../auth/config');
 
 const successUrl =
-  process.NODE_ENV === 'production'
+  process.env.NODE_ENV === 'production'
     ? 'https://kam-lambda-notes.netlify.com'
     : 'http://localhost:3000';
 
