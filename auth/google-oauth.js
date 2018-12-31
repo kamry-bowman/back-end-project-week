@@ -4,8 +4,8 @@ const makeUser = require('../utils/makeGoogleUser');
 const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
 const urlRoot =
   process.env.NODE_ENV === 'production'
-    ? 'https://kam-lambda-notes.netlify.com'
-    : 'https://kam-ln-api.herokuapp.com';
+    ? 'https://kam-ln-api.herokuapp.com'
+    : 'http://localhost:8000';
 
 const options = {
   clientID: GOOGLE_CLIENT_ID,
