@@ -1,9 +1,10 @@
+/* eslint-disable no-unused-expressions */
 const { Router } = require('express');
 const bcrypt = require('bcrypt');
 const camelToSnake = require('../utils/camelToSnake');
 const HttpError = require('../utils/HttpError');
 
-const passportInit = require('../auth/local');
+const passportInit = require('../auth/config');
 
 function makeRoute(db, passport) {
   const route = Router();
@@ -67,6 +68,19 @@ function makeRoute(db, passport) {
       }
     })(req, res, next);
   });
+
+  route.get(
+    '/google',
+    passport.authenticate('google', { scope: ['openid', 'email'] })
+  );
+
+  route.get(
+    '/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    (req, res) => {
+      return res.redirect('http://localhost:3000/');
+    }
+  );
 
   return route;
 }
