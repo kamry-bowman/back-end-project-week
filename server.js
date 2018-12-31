@@ -3,6 +3,7 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
 const session = require('express-session');
+const KnexSessionStore = require('connect-session-knex')(session);
 const flash = require('express-flash');
 const passport = require('passport');
 require('dotenv').config();
@@ -34,6 +35,7 @@ server.use(
     secret: process.env.SECRET_KEY,
     resave: false,
     saveUninitialized: true,
+    store: new KnexSessionStore({ knex: db, tablename: 'sessions' }),
   })
 );
 server.use(passport.initialize());
