@@ -1,3 +1,9 @@
 language: node_js
 node_js:
   - 'node'
+services:
+  - postgresql
+before_script:
+  - psql - "create database lambdaNotes;' -U postgres"
+  - psql - "create user kamdu with password '3649631';" -U postgres"
+  - npx knex migrate:latest
