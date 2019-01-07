@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/kamry-bowman/back-end-project-week#readme",
   "dependencies": {
-    "bcrypt": "^3.0.2",
+    "bcryptjs": "^2.4.3",
     "connect-session-knex": "^1.4.0",
     "cors": "^2.8.4",
     "dotenv": "^6.0.0",

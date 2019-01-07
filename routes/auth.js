@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-expressions */
 const { Router } = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const camelToSnake = require('../utils/camelToSnake');
 const HttpError = require('../utils/HttpError');
 

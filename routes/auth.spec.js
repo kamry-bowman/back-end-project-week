@@ -1,9 +1,10 @@
 /* eslint-disable prefer-destructuring */
 const request = require('supertest');
 const faker = require('faker');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const db = require('knex')(require('../knexfile').development);
 const server = require('../server');
+const truncateDB = require('../utils/truncateDB');
 
 const getUsers = () => db('users').select();
 const populateUser = () => {
@@ -21,9 +22,7 @@ const populateUser = () => {
 describe('routes: auth', () => {
   let user;
   beforeEach((done) => {
-    return db.migrate
-      .rollback()
-      .then(() => db.migrate.latest())
+    return truncateDB(db)
       .then(() => populateUser())
       .then((createdUser) => {
         user = createdUser;
@@ -108,22 +107,21 @@ describe('routes: auth', () => {
           })
           .then((response) => {
             console.log(response.body, response.status);
-            return agent
-              .get('/auth/user');
+            return agent.get('/auth/user');
           })
           .then((response) => {
             const { username, id } = response.body;
             expect(response.status).toBe(200);
             expect(response.body).toEqual({ username, id });
-            return agent
-              .post('/auth/logout')
-              .then(() => {
-                return agent.get('/auth/user');
-              });
+            return agent.post('/auth/logout').then(() => {
+              return agent.get('/auth/user');
+            });
           })
           .then((response) => {
             expect(response.status).toBe(401);
-            expect(response.body).toEqual({ message: 'Forbidden: User not authenticated' });
+            expect(response.body).toEqual({
+              message: 'Forbidden: User not authenticated',
+            });
             return done();
           });
       });
@@ -140,17 +138,17 @@ describe('routes: auth', () => {
             password: user.password,
           })
           .then((response) => {
-            return agent
-              .post('/auth/logout');
+            return agent.post('/auth/logout');
           })
           .then((response) => {
             expect(response.status).toBe(204);
-            return agent
-              .post('/auth/logout');
+            return agent.post('/auth/logout');
           })
           .then((response) => {
             expect(response.status).toBe(401);
-            expect(response.body).toEqual({ message: 'Forbidden: User not authenticated' });
+            expect(response.body).toEqual({
+              message: 'Forbidden: User not authenticated',
+            });
             return done();
           });
       });

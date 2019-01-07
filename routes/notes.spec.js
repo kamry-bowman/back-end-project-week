@@ -7,21 +7,23 @@ const snakeToCamel = require('../utils/snakeToCamel');
 const camelToSnake = require('../utils/camelToSnake');
 const orderList = require('../utils/orderList');
 const populateTestDB = require('../utils/populateTestDB');
+const truncateDB = require('../utils/truncateDB');
 
 async function getCurrentDB(userId) {
   let { rows } = await db.raw('SELECT * FROM notes');
   const camelCased = rows.map(snakeToCamel);
   const ordered = orderList(camelCased, userId);
   const tagPromises = ordered.map(
-    note => new Promise((resolve) => {
-      db.select('tags.id', 'tags.name')
-        .from('notesTagsJoin')
-        .innerJoin('tags', 'notesTagsJoin.tagId', '=', 'tags.id')
-        .where('notesTagsJoin.noteId', '=', note.id)
-        .then((res) => {
-          return resolve({ ...note, tags: [...res] });
-        });
-    }),
+    (note) =>
+      new Promise((resolve) => {
+        db.select('tags.id', 'tags.name')
+          .from('notesTagsJoin')
+          .innerJoin('tags', 'notesTagsJoin.tagId', '=', 'tags.id')
+          .where('notesTagsJoin.noteId', '=', note.id)
+          .then((res) => {
+            return resolve({ ...note, tags: [...res] });
+          });
+      })
   );
   rows = await Promise.all(tagPromises);
 
@@ -31,10 +33,7 @@ async function getCurrentDB(userId) {
 }
 
 async function basicPopulate() {
-  const users = await db.migrate
-    .rollback()
-    .then(() => db.migrate.latest())
-    .then(res => populateTestDB(db));
+  const users = await truncateDB(db).then((res) => populateTestDB(db));
 
   const currentDB = await getCurrentDB(1);
   return { notes: currentDB, users };
@@ -57,11 +56,10 @@ describe('Note api', () => {
           expect(body).toEqual({ message: 'Must be logged in' });
         });
     }
-    return request[type](url)
-      .then(({ status, body }) => {
-        expect(status).toBe(401);
-        expect(body).toEqual({ message: 'Must be logged in' });
-      });
+    return request[type](url).then(({ status, body }) => {
+      expect(status).toBe(401);
+      expect(body).toEqual({ message: 'Must be logged in' });
+    });
   };
 
   beforeEach((done) => {
@@ -87,7 +85,7 @@ describe('Note api', () => {
       const request = supertest.agent(server);
       return request
         .post('/auth/logout')
-        .then(() => nonAuthTest(request, 'get', '/notes/get/all'))
+        .then(() => nonAuthTest(request, 'get', '/notes/get/all'));
     });
 
     it('returns all notes in database', (done) => {
@@ -117,8 +115,9 @@ describe('Note api', () => {
     });
 
     it('returns an empty array when there are no notes', async (done) => {
-      await db.raw('ALTER TABLE "notesTagsJoin" DROP CONSTRAINT "notestagsjoin_noteid_foreign"');
-      await db('notes').truncate();
+      await db.raw(
+        'TRUNCATE "notesTagsJoin", notes, tags RESTART IDENTITY CASCADE'
+      );
 
       const request = supertest.agent(server);
       await scratchLogin(request, users[0]);
@@ -183,23 +182,29 @@ describe('Note api', () => {
           newNote = { ...newNote, id: body.id };
           return body.id;
         })
-        .then(id => db('notes')
-          .where('id', '=', id)
-          .first())
+        .then((id) =>
+          db('notes')
+            .where('id', '=', id)
+            .first()
+        )
         .then(async (response) => {
           expect(response.created_at).toBeDefined();
           expect(response).toMatchObject(camelToSnake(newNote));
 
           response.tags = [];
-          const parsedNewNote = JSON.parse(JSON.stringify(snakeToCamel(response)));
+          const parsedNewNote = JSON.parse(
+            JSON.stringify(snakeToCamel(response))
+          );
           let updatedNotes = await getCurrentDB(users[0].id);
-          updatedNotes = JSON.parse(JSON.stringify(updatedNotes.map(snakeToCamel)));
+          updatedNotes = JSON.parse(
+            JSON.stringify(updatedNotes.map(snakeToCamel))
+          );
           baseNotes[baseNotes.length - 1].right = response.id;
           expect([...baseNotes, parsedNewNote]).toEqual(updatedNotes);
 
           return done();
         })
-        .catch(err => console.log(err));
+        .catch((err) => console.log(err));
     });
 
     it('refuses to create a note when not logged in', async (done) => {
@@ -211,7 +216,7 @@ describe('Note api', () => {
       const originalNotes = await db('notes').select();
       const request = supertest.agent(server);
 
-      await nonAuthTest(request, 'post', '/notes/create', newNote)
+      await nonAuthTest(request, 'post', '/notes/create', newNote);
 
       const updatedNotes = await db('notes').select();
       expect(updatedNotes).toEqual(originalNotes);
@@ -237,17 +242,23 @@ describe('Note api', () => {
           newNote = { ...newNote, id: body.id };
           return body.id;
         })
-        .then(id => db('notes')
-          .where('id', '=', id)
-          .first())
+        .then((id) =>
+          db('notes')
+            .where('id', '=', id)
+            .first()
+        )
         .then(async (response) => {
           expect(response.created_at).toBeDefined();
           expect(response).toMatchObject(camelToSnake(newNote));
 
           response.tags = [];
-          const parsedNewNote = JSON.parse(JSON.stringify(snakeToCamel(response)));
+          const parsedNewNote = JSON.parse(
+            JSON.stringify(snakeToCamel(response))
+          );
           let updatedNotes = await getCurrentDB(users[1].id);
-          updatedNotes = JSON.parse(JSON.stringify(updatedNotes.map(snakeToCamel)));
+          updatedNotes = JSON.parse(
+            JSON.stringify(updatedNotes.map(snakeToCamel))
+          );
           baseNotes[baseNotes.length - 1].right = response.id;
           expect([...baseNotes, parsedNewNote]).toEqual(updatedNotes);
 
@@ -266,13 +277,11 @@ describe('Note api', () => {
       await scratchLogin(request, user);
 
       return db
-        .raw('ALTER TABLE "notesTagsJoin" DROP CONSTRAINT "notestagsjoin_noteid_foreign"')
+        .raw('TRUNCATE "notesTagsJoin", notes, tags RESTART IDENTITY CASCADE')
         .then(() => db('notesTagsJoin').truncate())
         .then(() => db('notes').truncate())
         .then(() => {
-          return request
-            .post('/notes/create')
-            .send(newNote);
+          return request.post('/notes/create').send(newNote);
         })
         .then((response) => {
           expect(response.status).toBe(201);
@@ -388,7 +397,7 @@ describe('Note api', () => {
           return done();
         });
     });
-  })
+  });
 
   describe('PUT request to edit note', () => {
     it('edits a note', async (done) => {
@@ -423,12 +432,18 @@ describe('Note api', () => {
 
       const request = supertest.agent(server);
 
-      return nonAuthTest(request, 'put', `/notes/edit/${id}`, updateNote)
-        .then(async () => {
-          const updatedNote = await db('notes').select('*').where('id', '=', id).first();
-          expect(baseNotes[1]).toMatchObject(JSON.parse(JSON.stringify(snakeToCamel(updatedNote))));
+      return nonAuthTest(request, 'put', `/notes/edit/${id}`, updateNote).then(
+        async () => {
+          const updatedNote = await db('notes')
+            .select('*')
+            .where('id', '=', id)
+            .first();
+          expect(baseNotes[1]).toMatchObject(
+            JSON.parse(JSON.stringify(snakeToCamel(updatedNote)))
+          );
           return done();
-        });
+        }
+      );
     });
 
     it('throws a 404 error for a bad id', async (done) => {
@@ -480,9 +495,7 @@ describe('Note api', () => {
   });
 
   describe('DELETE a note', () => {
-
     it('deletes a note from the end', async (done) => {
-
       const request = supertest.agent(server);
       const user = users[0];
       await scratchLogin(request, user);
@@ -500,9 +513,12 @@ describe('Note api', () => {
 
           const updatedNotes = await getCurrentDB(user.id);
           expect(updatedNotes).toHaveLength(baseNotes.length - 1);
-          expect(updatedNotes
-            .find(note => note.id === noteTarget.id)).toBeUndefined();
-          expect(updatedNotes[updatedNotes.length - 1].id).not.toBe(noteTarget.id);
+          expect(
+            updatedNotes.find((note) => note.id === noteTarget.id)
+          ).toBeUndefined();
+          expect(updatedNotes[updatedNotes.length - 1].id).not.toBe(
+            noteTarget.id
+          );
           return done();
         });
     });
@@ -526,8 +542,9 @@ describe('Note api', () => {
 
           const updatedNotes = await getCurrentDB(user.id);
           expect(updatedNotes).toHaveLength(baseNotes.length - 1);
-          expect(updatedNotes
-            .find(note => note.id === noteTarget.id)).toBeUndefined();
+          expect(
+            updatedNotes.find((note) => note.id === noteTarget.id)
+          ).toBeUndefined();
           expect(updatedNotes[0].id).not.toBe(noteTarget.id);
           return done();
         });
@@ -552,15 +569,15 @@ describe('Note api', () => {
 
           const updatedNotes = await getCurrentDB(user.id);
           expect(updatedNotes).toHaveLength(baseNotes.length - 1);
-          expect(updatedNotes
-            .find(note => note.id === noteTarget.id)).toBeUndefined();
+          expect(
+            updatedNotes.find((note) => note.id === noteTarget.id)
+          ).toBeUndefined();
           expect(updatedNotes[2].id).not.toBe(noteTarget.id);
           return done();
         });
     });
 
     it('returns a 404 error if a bad id is sent', async (done) => {
-
       const request = supertest.agent(server);
       const user = users[0];
       await scratchLogin(request, user);
@@ -571,7 +588,7 @@ describe('Note api', () => {
           expect(status).toEqual(404);
           return db('notes')
             .count({ count: '*' })
-            .where({ user_id: user.id})
+            .where({ user_id: user.id })
             .first();
         })
         .then(({ count }) => {
@@ -581,7 +598,6 @@ describe('Note api', () => {
     });
 
     it('returns a 403 error if deletion is attempted when not logged in', async () => {
-
       const request = supertest.agent(server);
       const user = users[0];
       const note = baseNotes[3];
@@ -590,28 +606,29 @@ describe('Note api', () => {
 
       updatedNotes = await getCurrentDB(users[0].id);
       expect(baseNotes).toEqual(updatedNotes);
-    })
+    });
 
     it('returns a 403 if the wrong user attempts to delete a note', async () => {
-
       const request = supertest.agent(server);
       const note = baseNotes[1];
-      const user = users.find(user => user.id !== note.userId);
+      const user = users.find((user) => user.id !== note.userId);
 
       await scratchLogin(request, user);
       const { status, body } = await request.delete(`/notes/delete/${note.id}`);
       expect(status).toBe(401);
-      expect(body).toEqual({ message: 'User is not authorized for this request' });
+      expect(body).toEqual({
+        message: 'User is not authorized for this request',
+      });
       updatedNotes = await getCurrentDB(users[0].id);
       expect(baseNotes).toEqual(updatedNotes);
-    })
+    });
   });
 
   describe('GET tags', () => {
     it('returns all tags for different users', async (done) => {
       const request = supertest.agent(server);
       const note = baseNotes[3];
-      const user = users.find(user => user.id === note.userId);
+      const user = users.find((user) => user.id === note.userId);
       await scratchLogin(request, user);
 
       let baseTags = new Set();
@@ -622,14 +639,12 @@ describe('Note api', () => {
       });
       baseTags = Array.from(baseTags);
 
-      await request
-        .get('/notes/tags')
-        .then(({ body, status }) => {
-          expect(status).toEqual(200);
-          expect(body).toEqual(baseTags);
-        });
+      await request.get('/notes/tags').then(({ body, status }) => {
+        expect(status).toEqual(200);
+        expect(body).toEqual(baseTags);
+      });
 
-      const diffUser = users.find(user => user.id !== note.userId);
+      const diffUser = users.find((user) => user.id !== note.userId);
       const diffNotes = await getCurrentDB(diffUser.id);
 
       let otherTags = new Set();
@@ -644,13 +659,11 @@ describe('Note api', () => {
 
       await request.post('/auth/logout');
       await scratchLogin(request, diffUser);
-      return request
-        .get('/notes/tags')
-        .then(({ body, status }) => {
-          expect(status).toEqual(200);
-          expect(body).toEqual(otherTags);
-          return done();
-        });
+      return request.get('/notes/tags').then(({ body, status }) => {
+        expect(status).toEqual(200);
+        expect(body).toEqual(otherTags);
+        return done();
+      });
     });
 
     it('refuses access to tags if user is not logged in', (done) => {
@@ -660,18 +673,17 @@ describe('Note api', () => {
         .then(() => {
           return done();
         })
-        .catch(err => console.log(err));
+        .catch((err) => console.log(err));
     });
   });
 
   describe('PUT /notes/move', () => {
-
-    it('handles two reorders internally towards right', (async (done) => {
+    it('handles two reorders internally towards right', async (done) => {
       // [1, 2, 3, 4, 5]
       // [1, 3, 2, 4, 5]
 
       const request = supertest.agent(server);
-      let user = users.find(user => user.id === baseNotes[0].userId);
+      const user = users.find((user) => user.id === baseNotes[0].userId);
       await scratchLogin(request, user);
 
       let leftNote = baseNotes[1];
@@ -686,8 +698,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -703,15 +715,15 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
           return done();
         });
-    }));
+    });
 
-    it('refuses reorder if not logged-in', (async (done) => {
+    it('refuses reorder if not logged-in', async (done) => {
       // [1, 2, 3, 4, 5]
       // [1, 3, 2, 4, 5]
 
@@ -727,14 +739,14 @@ describe('Note api', () => {
 
       expect(updatedNotes).toEqual(baseNotes);
       return done();
-    }));
+    });
 
-    it('it rejects a move if user doesn\'t own the notes', (async (done) => {
+    it("it rejects a move if user doesn't own the notes", async (done) => {
       // [1, 2, 3, 4, 5]
       // [1, 4, 2, 3, 5]
 
       const request = supertest.agent(server);
-      const user = users.find(user => user.id !== baseNotes[0].userId);
+      const user = users.find((user) => user.id !== baseNotes[0].userId);
       await scratchLogin(request, user);
 
       const leftNote = baseNotes[1];
@@ -750,14 +762,14 @@ describe('Note api', () => {
 
       expect(updatedNotes).toEqual(baseNotes);
       return done();
-    }));
+    });
 
-    it('handles two reorders internally towards left', (async (done) => {
+    it('handles two reorders internally towards left', async (done) => {
       // [1, 2, 3, 4, 5]
       // [1, 4, 2, 3, 5]
 
       const request = supertest.agent(server);
-      const user = users.find(user => user.id === baseNotes[0].userId);
+      const user = users.find((user) => user.id === baseNotes[0].userId);
       await scratchLogin(request, user);
 
       let leftNote = baseNotes[1];
@@ -771,8 +783,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(1, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -788,19 +800,19 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(1, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           return done();
         });
-    }));
+    });
 
-    it('handles two internal reorders to left end', (async (done) => {
+    it('handles two internal reorders to left end', async (done) => {
       // [1, 2, 3, 4, 5]
       // [4, 1, 2, 3, 5]
 
       const request = supertest.agent(server);
-      let user = users.find(user => user.id === baseNotes[0].userId);
+      const user = users.find((user) => user.id === baseNotes[0].userId);
       await scratchLogin(request, user);
 
       let leftNote = baseNotes[0];
@@ -814,8 +826,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(0, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -831,18 +843,17 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(0, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
           return done();
         });
-    }));
+    });
 
-    it('handles two internal reorders to left end', (async (done) => {
-
+    it('handles two internal reorders to left end', async (done) => {
       const request = supertest.agent(server);
-      let user = users.find(user => user.id === baseNotes[0].userId);
+      const user = users.find((user) => user.id === baseNotes[0].userId);
       await scratchLogin(request, user);
 
       let leftNote = baseNotes[1];
@@ -856,8 +867,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 1, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -873,16 +884,16 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 1, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           return done();
         });
-    }));
+    });
 
-    it('handles all reorders combined', (async (done) => {
+    it('handles all reorders combined', async (done) => {
       const request = supertest.agent(server);
-      let user = users.find(user => user.id === baseNotes[0].userId);
+      const user = users.find((user) => user.id === baseNotes[0].userId);
       await scratchLogin(request, user);
 
       let leftNote = baseNotes[1];
@@ -898,8 +909,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -916,8 +927,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -934,8 +945,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(1, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -952,8 +963,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(1, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -970,8 +981,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(0, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -988,8 +999,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 2, 1);
           baseNotes.splice(0, 0, rightNote);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -1006,8 +1017,8 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 1, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
         });
@@ -1024,12 +1035,12 @@ describe('Note api', () => {
           const updatedNotes = await getCurrentDB(user.id);
           baseNotes.splice(baseNotes.length - 1, 0, leftNote);
           baseNotes.splice(1, 1);
-          const baseNoteIds = baseNotes.map(note => note.id);
-          const updatedIds = updatedNotes.map(note => note.id);
+          const baseNoteIds = baseNotes.map((note) => note.id);
+          const updatedIds = updatedNotes.map((note) => note.id);
           expect(updatedIds).toEqual(baseNoteIds);
           baseNotes = updatedNotes;
           return done();
         });
-    }));
+    });
   });
 });

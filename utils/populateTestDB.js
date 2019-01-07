@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const notesSeedArray = require('../dummyData/noteSeedArray');
 const notesTagsJoinArray = require('../dummyData/notesTagsJoinArray');
 const tagSeedArray = require('../dummyData/tagSeedArray');
