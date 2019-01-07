@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -6,7 +7,6 @@ const session = require('express-session');
 const KnexSessionStore = require('connect-session-knex')(session);
 const flash = require('express-flash');
 const passport = require('passport');
-require('dotenv').config();
 const knex = require('knex');
 const knexfile = require('./knexfile');
 const notesRoute = require('./routes/notes');
