@@ -4,6 +4,6 @@ node_js:
 services:
   - postgresql
 before_script:
-  - psql -c "create database lambdaNotes;" -U postgres
-  - psql -c "create user kamdu with password '3649631';" -U postgres
+  - createdb lambdaNotes
+  - psql -c "create user kamdu with password '3649631';" -U postgres -d lambdaNotes
   - npx knex migrate:latest
