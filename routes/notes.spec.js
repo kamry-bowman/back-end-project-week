@@ -278,8 +278,6 @@ describe('Note api', () => {
 
       return db
         .raw('TRUNCATE "notesTagsJoin", notes, tags RESTART IDENTITY CASCADE')
-        .then(() => db('notesTagsJoin').truncate())
-        .then(() => db('notes').truncate())
         .then(() => {
           return request.post('/notes/create').send(newNote);
         })
