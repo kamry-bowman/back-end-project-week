@@ -15,7 +15,6 @@ const HttpError = require('./utils/HttpError');
 
 const dbEnv =
   process.env.NODE_ENV === 'production' ? 'production' : 'development';
-console.log(dbEnv);
 const db = knex(knexfile[dbEnv]);
 
 const server = express();
