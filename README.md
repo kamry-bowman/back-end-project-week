@@ -2,7 +2,7 @@
 
 The Lambda Notes web applciation was built out as part of my full stack web development application at Lambda School. This was the server that supports the front end, which can be found [here](https://github.com/kamry-bowman/front-end-project-week). The server was built using Node and Express, and used Postgresql in combination with the Knex library.
 
-## Site
+## Deployed Site
 
 The site is currently viewable [here](https://kam-lambda-notes.netlify.com/). You can log in as "user1" with password "1234" to try out a demo account, or create your own account!
 
